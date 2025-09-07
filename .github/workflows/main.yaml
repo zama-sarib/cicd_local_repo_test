@@ -1,0 +1,36 @@
+name: CI/CD for ETL Jobs
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-job-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Detect changed folder
+        id: changes
+        run: |
+          echo "Looking for changed job..."
+          # Find the first-level folder under etl-jobs that changed
+          JOB_NAME=$(git diff --name-only HEAD~1 HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
+          echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
+
+      - name: Package job artifact
+        run: |
+          mkdir -p artifacts
+          JOB_NAME=${{ steps.changes.outputs.job }}
+          if [ -z "$JOB_NAME" ]; then
+            echo "No ETL job changes detected."
+            exit 1
+          fi
+          zip -r artifacts/${JOB_NAME}_build_${{ github.run_number }}.zip etl-jobs/$JOB_NAME
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: etl-job
+          path: artifacts/
