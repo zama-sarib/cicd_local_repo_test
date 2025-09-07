@@ -14,10 +14,10 @@ jobs:
       - name: Detect changed folder
         id: changes
         run: |
-          echo "Looking for changed job..."
-          # Find the first-level folder under etl-jobs that changed
-          JOB_NAME=$(git diff --name-only HEAD~1 HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
-          echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
+            echo "Looking for changed job..."
+            JOB_NAME=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
+            echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
+
 
       - name: Package job artifact
         run: |
