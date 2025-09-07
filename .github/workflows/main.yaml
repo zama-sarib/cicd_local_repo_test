@@ -4,33 +4,76 @@ on:
   push:
     branches: [ "main" ]
 
+# jobs:
+#   build-job-artifact:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+
+#       - name: Detect changed folder
+#         id: changes
+#         run: |
+#             echo "Looking for changed job..."
+#             JOB_NAME=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
+#             echo "$JOB_NAME"
+#             echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
+
+
+#       - name: Package job artifact
+#         run: |
+#           mkdir -p artifacts
+#           JOB_NAME=${{ steps.changes.outputs.job }}
+#           if [ -z "$JOB_NAME" ]; then
+#             echo "No ETL job changes detected."
+#             exit 1
+#           fi
+#           zip -r artifacts/${JOB_NAME}_build_${{ github.run_number }}.zip etl-jobs/$JOB_NAME
+
+#       - name: Upload artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: etl-job
+#           path: artifacts/
+
 jobs:
   build-job-artifact:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # important: full history
 
-      - name: Detect changed folder
+      - name: Detect changed jobs
         id: changes
         run: |
-            echo "Looking for changed job..."
-            JOB_NAME=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
-            echo $JOB_NAME
-            echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
+          echo "Looking for changed jobs..."
+          # Find changed files between this commit and previous
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD || true)
 
+          # Extract unique job names under etl-jobs/
+          JOBS=$(echo "$CHANGED_FILES" | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | uniq)
 
-      - name: Package job artifact
+          if [ -z "$JOBS" ]; then
+            echo "No ETL job changes detected."
+            echo "jobs=" >> $GITHUB_OUTPUT
+          else
+            echo "Changed jobs: $JOBS"
+            echo "jobs=$JOBS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package artifacts
+        if: steps.changes.outputs.jobs != ''
         run: |
           mkdir -p artifacts
-          JOB_NAME=${{ steps.changes.outputs.job }}
-          if [ -z "$JOB_NAME" ]; then
-            echo "No ETL job changes detected."
-            exit 1
-          fi
-          zip -r artifacts/${JOB_NAME}_build_${{ github.run_number }}.zip etl-jobs/$JOB_NAME
+          for JOB in ${{ steps.changes.outputs.jobs }}; do
+            echo "Packaging $JOB ..."
+            zip -r artifacts/${JOB}_build_${{ github.run_number }}.zip etl-jobs/$JOB
+          done
 
-      - name: Upload artifact
+      - name: Upload artifacts
+        if: steps.changes.outputs.jobs != ''
         uses: actions/upload-artifact@v4
         with:
           name: etl-job
