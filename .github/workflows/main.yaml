@@ -16,6 +16,7 @@ jobs:
         run: |
             echo "Looking for changed job..."
             JOB_NAME=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '^etl-jobs/' | cut -d'/' -f2 | sort -u | head -1)
+            echo $JOB_NAME
             echo "job=$JOB_NAME" >> $GITHUB_OUTPUT
 
 
